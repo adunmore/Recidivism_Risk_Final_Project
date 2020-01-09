@@ -1,69 +1,81 @@
----
-title: 'Predicting Recidivism in Broward County'
-author: 'π-lence of the Lambs: Aaron Dunmore (adunmore@andrew.cmu.edu) and Minseon Lee (minseonl@andrew.cmu.edu)'
-output:
-  github_document:
-  toc: TRUE
-  toc_float: TRUE
----
+Predicting Recidivism in Broward County
+================
+π-lence of the Lambs: Aaron Dunmore (ID: adunmore) and Minseon Lee (ID: minseonl)
 
-
-```{r, include=FALSE}
-library(DBI)
-library(RSQLite)
-library(tidyverse)
-
-conn <- dbConnect(drv = dbDriver('SQLite'),
-                  '../Data/modified/compas.db')
-compas <- dbGetQuery(conn = conn,
-           statement = 'select * from casearrest
-                          JOIN people on casearrest.person_id = people.id')
-```
- 
-## Problem Framing
+Problem Framing
+---------------
 
 Our model predicts risk of recidivism and risk of violent recidivism within 2 years of a given arrest.
 
 (more here, probably)
 
-## 1. Data Processing
+1. Data Processing
+------------------
 
 ### 1.1. Introduction
 
 #### a) compas.db
+
 Our data source is a sqlite database file. It includes 5 relevant tables:
 
-Name | Description
-:-|-
-casearrest | The main table of interest. Contains one row per criminal charge per arrest event.
-people | One row per person. Includes basic information such as sex, race, date of birth, and juvenile criminal history.
-charge | One row per charge. Includes detailed information about charges, including charge descriptions.
-jailhistory | Includes each individual's history of jail custody
-prisonhistory | Includes each individual's history of prison custody.
+<table style="width:7%;">
+<colgroup>
+<col width="4%" />
+<col width="2%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th align="left">Name</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left">casearrest</td>
+<td>The main table of interest. Contains one row per criminal charge per arrest event.</td>
+</tr>
+<tr class="even">
+<td align="left">people</td>
+<td>One row per person. Includes basic information such as sex, race, date of birth, and juvenile criminal history.</td>
+</tr>
+<tr class="odd">
+<td align="left">charge</td>
+<td>One row per charge. Includes detailed information about charges, including charge descriptions.</td>
+</tr>
+<tr class="even">
+<td align="left">jailhistory</td>
+<td>Includes each individual's history of jail custody</td>
+</tr>
+<tr class="odd">
+<td align="left">prisonhistory</td>
+<td>Includes each individual's history of prison custody.</td>
+</tr>
+</tbody>
+</table>
 
 #### b) Descriptives
 
-compas includes `r nrow(compas)` arrest-charges, which represent `r compas %>% select(person_id, arrest_date) %>% distinct() %>% count()` arrest events for `r length(unique(compas$person_id))` people. Arrest dates range from `r as.Date(min(compas$arrest_date))` to `r as.Date(max(compas$arrest_date))`
+compas includes 128180 arrest-charges, which represent 55732 arrest events for 10963 people. Arrest dates range from 1975-07-06 to 2016-03-30
 
 ### 1.2. Transformations
 
 We synthesized a number of variables for each arrest event.
 
-#### a) violent_offense
+#### a) violent\_offense
 
 We identified whether each arrest event was charged as a violent offense. We followed the [FBI's definition of violent crime](https://ucr.fbi.gov/crime-in-the-u.s/2018/crime-in-the-u.s.-2018/topic-pages/violent-crime): murder, rape, robbery, and aggravated assault.
 
-We used simple text filters on each charge's description to identify each crime as either violent or non-violent. 
+We used simple text filters on each charge's description to identify each crime as either violent or non-violent.
 
-This method identified just `r compas %>% select(person_id, arrest_date, recidivated_violent) %>% filter(recidivated_violent == 1) %>% distinct() %>% nrow()` violent crimes, so it might have failed to identify some violent crimes in the dataset. With better information about how the Broward County court system labels violent crimes, we could have performed this step with higher confidence. This is a limitation of our analysis of violent recidivism.
+This method identified just 3187 violent crimes, so it might have failed to identify some violent crimes in the dataset. With better information about how the Broward County court system labels violent crimes, we could have performed this step with higher confidence. This is a limitation of our analysis of violent recidivism.
 
 This also means that class imbalance will be a concern as we try to predict violent recidivism. This issue is addressed in section 3.1.b
 
-#### b) recidivism and violent_recidivism
+#### b) recidivism and violent\_recidivism
 
 We also identifed whether each arrest event was followed up by an event of recidivism (or violent recidivism). We followed the definition of recidivism suggested by the authors of ProPublica's analysis of the COMPAS Recidivism Algorithm: recidivism occurs when an individual commmits a new (violent) felony or misdemeanor offense within two years of a given arrest.
 
-If a given arrest event occurred <2 years before the end of the data (`r as.Date(max(compas$arrest_date))`), then we could not conclude whether or not the arrest was followed by recidivism. Such cases were excluded from our training data.
+If a given arrest event occurred &lt;2 years before the end of the data (2016-03-30), then we could not conclude whether or not the arrest was followed by recidivism. Such cases were excluded from our training data.
 
 #### c) prior criminal history
 
@@ -83,137 +95,25 @@ We excluded Municipal Offenses from this data. We neither counted them as recidi
 
 The original dataset included some arrest events labeled as taking place in the future (2020 and later). We removed these events from the data.
 
-## 2. Exploration
+2. Exploration
+--------------
 
 We examined how recidivism and violent recidivism differ across our indipendent variables. Based on the plots, for both recidivism and violent recidivism, younger defendants are more likely to recidivate. Men are more likely to recidivate than women. Native American and African-American are more likely to recidivate. Defendants with more overall prior arrests are more likely to recidivate. For other variables, such as charge degree and the number of prior arrests within the last two years and five years, we did not find any interesting pattern.
 
-```{r global_options, include=FALSE}
-knitr::opts_chunk$set(fig.width=10, fig.height=6, fig.path='Figs/',
-                      warning=FALSE, message=FALSE)
-```
-
-
-
-
-```{r setup, include=FALSE, echo=FALSE}
-
-library(tidyverse)
-library(gridExtra)
-
-df <- read_csv("../Data/modified/arrest_history.csv")
-df_violent <- read_csv("../Data/modified/arrest_history_violent.csv")
-df_raw <- read_csv("../Data/modified/arrest_history_raw.csv")
-
-
-df$arrest_age_category <- factor(df$arrest_age_category, 
-                                 levels = c("Less than 25", "25 - 45", "Greater than 45"))
-
-df_violent$arrest_age_category <- factor(df_violent$arrest_age_category, 
-                                 levels = c("Less than 25", "25 - 45", "Greater than 45"))
-
-```
-
 ### 2.1. Recidivism plots
 
-```{r two-year recidivism, echo=FALSE}
-r1 <- df %>% 
-  ggplot(aes(x = race, fill = recidivated)) +
-  geom_bar(position = "fill") +
-  scale_fill_manual(values=c('lightgray', 'black')) +
-  labs(title = "Recidivism across race") +
-  theme(legend.position = "none") + 
-  coord_flip()
-
-
-
-r2 <- df %>% 
-  ggplot(aes(x = arrest_age_category, fill = recidivated)) +
-  geom_bar(position = "fill") +
-  scale_fill_manual(values=c('lightgray', 'black')) +
-  labs(title = "Recidivism across age", x = "age") +
-  theme(legend.position = "none")
-
-
-r3 <- df %>% 
-  ggplot(aes(x = sex, fill = recidivated)) +
-  geom_bar(position = "fill") +
-  scale_fill_manual(values=c('lightgray', 'black')) +
-  labs(title = "Recidivism across gender", x = "gender")
-
-
-r4 <- df %>% 
-  ggplot(aes(x = prior_arrest_overall, fill = recidivated)) +
-  geom_bar(position = "fill") +
-  scale_fill_manual(values=c('lightgray', 'black')) +
-  labs(title = "Recidivism across the number\nof prior arrests", x = "prior arrests") +
-  theme(legend.position = "none")
-
-grid.arrange(r3, r2, r1, r4, nrow = 2)
-```
+![](Figs/two-year%20recidivism-1.png)
 
 ### 2.2 Violent recidivism plots
 
-```{r two-year violent recidivism, echo=FALSE}
-vr1 <- df_violent %>% 
-  ggplot(aes(x = race, fill = recidivated_violent)) +
-  geom_bar(position = "fill") +
-  scale_fill_manual(values=c('lightgray', 'black')) +
-  labs(title = "Violent recidivism across\nrace", x = "race") +
-  theme(legend.position = "none") + 
-  coord_flip()
+![](Figs/two-year%20violent%20recidivism-1.png)
 
-vr2 <- df_violent %>% 
-  ggplot(aes(x = arrest_age_category, fill = recidivated_violent)) +
-  geom_bar(position = "fill") +
-  scale_fill_manual(values=c('lightgray', 'black')) +
-  labs(title = "Violent recidivism across age", x = "age") +
-  theme(legend.position = "none")
-
-vr3 <- df_violent %>% 
-  ggplot(aes(x = sex, fill = recidivated_violent)) +
-  geom_bar(position = "fill") +
-  scale_fill_manual(values=c('lightgray', 'black')) +
-  labs(title = "Violent recidivism across gender", x = "gender") 
-
-vr4 <- df_violent %>% 
-  ggplot(aes(x = prior_arrest_overall, fill = recidivated_violent)) +
-  geom_bar(position = "fill") +
-  scale_fill_manual(values=c('lightgray', 'black')) +
-  labs(title = "Violent recidivism across the number\nof prior arrests", x = "prior arrests") +
-  theme(legend.position = "none")
-
-
-grid.arrange(vr3, vr2, vr1, vr4, nrow = 2)
-
-
-```
-
-
-
-## 3. Modeling
-
-```{r, echo=FALSE, include=FALSE}
-library(tidyverse)
-library(caret)
-library(ggplot2)
-library(ggthemes)
-library(broom)
-library(fastDummies)
-library(xgboost)
-library(ranger)
-library(lubridate)
-library(scales)
-library(pROC)
-library(plotROC)
-# install.packages("ranger")
-# install.packages("xgboost")
-# install.packages("fastDummies")
-```
+3. Modeling
+-----------
 
 ### 3.1 Loading & Preprocessing
 
-```{r loading data}
-
+``` r
 arrest_history <- read_csv("../Data/modified/arrest_history.csv") %>% 
   mutate(race = as.factor(race),
     arrest_age_category = as.factor(arrest_age_category),
@@ -234,8 +134,6 @@ arrest_history_violent <- read_csv("../Data/modified/arrest_history_violent.csv"
   arrange(arrest_date)
 
 # colnames(arrest_history_violent)
-
-
 ```
 
 #### a) Time-based Train & Test Splits
@@ -244,7 +142,7 @@ We have to take care to address the temporal nature of our data in our validatio
 
 We create a ~70-30 train-test split, with the test set as the last 3 years of the data set.
 
-```{r train & test sets}
+``` r
 arrest_history_train <- arrest_history %>% 
   filter(arrest_date < ymd(max(.$arrest_date)) - years(3)) %>% 
   select(-arrest_date)
@@ -263,11 +161,11 @@ arrest_history_violent_test <- arrest_history_violent %>%
 
 #### b) Upsampling
 
-Class imbalance is a major issue with our violent recidivism dataset. Just `r nrow(arrest_history_violent %>% filter(recidivated_violent == 'yes'))` of the `r nrow(arrest_history_violent)` rows in our violent recidivism dataset represent violent recidivism events, a class imbalance of `r percent(3185 / 43755)`. 
+Class imbalance is a major issue with our violent recidivism dataset. Just 3185 of the 43755 rows in our violent recidivism dataset represent violent recidivism events, a class imbalance of 7.28%.
 
 We address this problem by upsampling the violent recidivism training set using caret's built in upsampling function.
 
-```{r}
+``` r
 arrest_history_violent_upsample <- upSample(x = arrest_history_violent_train[, -2],
                                           y = arrest_history_violent_train$recidivated_violent) %>% 
   arrange(arrest_date) %>% 
@@ -281,18 +179,17 @@ arrest_history_violent_length <- nrow(arrest_history_violent_upsample)
 
 This code defines variables used by our time-based validation set schemes.
 
-```{r}
+``` r
 arrest_history_length <- nrow(arrest_history_train)
 
 arrest_history_violent_length <- nrow(arrest_history_violent_train)
-
 ```
 
 ### 3.2 Fitting models
 
 #### a) Logistic
 
-```{r logistic recidivism, warning=FALSE}
+``` r
 slice_size <- floor(arrest_history_length / 100)
 trControl_logit <- trainControl(method = "timeslice",
                               initialWindow = slice_size,
@@ -310,9 +207,7 @@ recidivism_logit <- train(recidivated ~ .,
                     trControl = trControl_logit)
 ```
 
-
-```{r logistic violent recidivism, warning=FALSE}
-
+``` r
 slice_size <- floor(arrest_history_violent_length / 100)
 trControl_logit_violent <- trainControl(method = "timeslice",
                               initialWindow = slice_size,
@@ -336,7 +231,7 @@ recidivism_violent_logit <- train(recidivated_violent ~ .,
 
 For regularized regressions (and a few other model types) we used a caching strategy to save us time when rerunning our notebook on unchanged data and modeling code.
 
-```{r lasso recidivism}
+``` r
 slice_size <- floor(arrest_history_length / 100)
 trControl_reg <- trainControl(method = "timeslice",
                              initialWindow = slice_size,
@@ -363,7 +258,9 @@ saveRDS(recidivism_reg, cache_string)
 }
 ```
 
-```{r lasso violent recidivism}
+    ## [1] "last run at: 2020-01-09 14:48:49"
+
+``` r
 slice_size <- floor(arrest_history_violent_length / 100)
 trControl_reg <- trainControl(method = "timeslice",
                              initialWindow = slice_size,
@@ -389,18 +286,17 @@ saveRDS(recidivism_violent_reg, cache_string)
 }
 ```
 
-
+    ## [1] "last run at: 2020-01-09 14:49:13"
 
 #### c) Tree
 
 Note: rpart and tree::tree() are both implementations of the same recursive partitioning algorithm.
 
-See details section:
-https://www.rdocumentation.org/packages/rpart/versions/4.1-15/topics/rpart
+See details section: <https://www.rdocumentation.org/packages/rpart/versions/4.1-15/topics/rpart>
 
 Because of the heavy class imbalance present in our violent recidivism dataset, and because tree models work poorly in conditions of class imbalance, we did not train a tree model for that problem.
 
-```{r tree recidivism}
+``` r
 slice_size <- floor(arrest_history_length / 10)
 trControl_tree <- trainControl(method = "timeslice",
                               initialWindow = slice_size,
@@ -418,7 +314,7 @@ recidivism_tree <- train(recidivated ~ .,
 
 #### d) Random Forest
 
-```{r rf recidivism}
+``` r
 slice_size <- floor(arrest_history_length / 10)
 trControl_rf <- trainControl(method = "timeslice",
                              initialWindow = slice_size,
@@ -445,8 +341,9 @@ saveRDS(recidivism_rf, file = cache_string)
 }
 ```
 
-```{r rf violent recidivism}
+    ## [1] "last run at: 2020-01-09 14:49:15"
 
+``` r
 slice_size <- floor(arrest_history_violent_length / 10)
 trControl_rf <- trainControl(method = "timeslice",
                              initialWindow = slice_size,
@@ -471,17 +368,13 @@ recidivism_rf_violent <- train(recidivated_violent ~ .,
 
 saveRDS(recidivism_violent_rf, file = cache_string)
 }
-
-
-
-
 ```
 
+    ## [1] "last run at: 2020-01-09 14:48:51"
 
 #### e) Boosting
 
-```{r boosting recidivism}
-
+``` r
 cache_string <- '../Cache/recidivism_boost.rds'
 
 
@@ -506,8 +399,7 @@ if(file.exists(cache_string)) {
 }
 ```
 
-```{r boosting violent recidivism}
-
+``` r
 cache_string <- '../Cache/recidivism_boost_violent.rds'
 
 
@@ -530,18 +422,16 @@ if(file.exists(cache_string)) {
                     )
   saveRDS(recidivism_violent_boost, file = cache_string)
 }
-
-
-
-
 ```
 
-## 4. Model Selection
+4. Model Selection
+------------------
 
 ### 4.1 Model Evaluation
+
 #### a) Generating Test Set Predictions
 
-```{r predictions}
+``` r
 testdata_violent <- arrest_history_violent_test
 
 # Logit
@@ -593,27 +483,50 @@ recidivism_boost.pred <- predict(recidivism_boost,
 recidivism_violent_boost.pred <- predict(recidivism_violent_boost, 
                                          newdata = arrest_history_violent_test, 
                                          type = 'prob')
-
 ```
 
 #### b) Sensitivity/Specificity
 
 We compared models on the basis of specificity & sensitivity. For this problem statement, we wanted a model with high specificity, because of the costs of imprisonment to an individual who is at low risk of recidivation.
 
-```{r}
+``` r
 # recidivism
 logit <- recidivism_logit$results[c("Spec", "Sens")] # logistic
 
 recidivism_reg$bestTune # regularization
+```
+
+    ##   alpha     lambda
+    ## 6  0.55 0.01376665
+
+``` r
 reg <- dplyr::slice(recidivism_reg$results, 6)[c("Spec", "Sens")]
 
 recidivism_boost$bestTune
+```
+
+    ##    nrounds max_depth eta gamma colsample_bytree min_child_weight subsample
+    ## 25      50         2 0.3     0              0.6                1         1
+
+``` r
 boost <- dplyr::slice(recidivism_boost$results, 25)[c("Spec", "Sens")] # boost
 
 recidivism_rf$bestTune
+```
+
+    ##   mtry splitrule min.node.size
+    ## 1    2      gini             1
+
+``` r
 rf <- dplyr::slice(recidivism_rf$results, 1)[c("Spec", "Sens")] # rf
 
 recidivism_tree$bestTune
+```
+
+    ##           cp
+    ## 1 0.00135318
+
+``` r
 tr <- dplyr::slice(recidivism_rf$results, 2)[c("Spec", "Sens")] # tree
 
 
@@ -624,21 +537,46 @@ rbind(logit = logit,
       tr = tr)
 ```
 
-Our logistic regression and boosted tree achieve comparable performance in both specificity and sensitivity. 
+    ##            Spec         Sens
+    ## logit 0.9209148 0.1396470517
+    ## reg   0.9959148 0.0106346061
+    ## boost 0.9564132 0.1015662097
+    ## rf    0.9996806 0.0018145161
+    ## tr    1.0000000 0.0002016129
 
-However, the logistic regression achieves higher sensitivity (~37.5% higher), for only a small loss in specificity. 
+Our logistic regression and boosted tree achieve comparable performance in both specificity and sensitivity.
 
-```{r}
+However, the logistic regression achieves higher sensitivity (~37.5% higher), for only a small loss in specificity.
+
+``` r
 # violent recidivism
 recidivism_violent_boost$bestTune
+```
+
+    ##   alpha     lambda
+    ## 9     1 0.01376665
+
+``` r
 boost_v <- dplyr::slice(recidivism_violent_boost$results, 4)[c("Spec", "Sens")]
 
 logit_v <- recidivism_violent_logit$results[c("Spec", "Sens")]
 
 recidivism_violent_reg$bestTune
+```
+
+    ##   alpha      lambda
+    ## 3   0.1 0.004268492
+
+``` r
 reg_v <- dplyr::slice(recidivism_violent_reg$results, 3)[c("Spec", "Sens")]
 
 recidivism_violent_rf$bestTune
+```
+
+    ##   mtry  splitrule min.node.size
+    ## 4   18 extratrees             1
+
+``` r
 rf_v <- dplyr::slice(recidivism_violent_rf$results, 4)[c("Spec", "Sens")]
 
 rbind(boost_v = boost_v,
@@ -647,13 +585,19 @@ rbind(boost_v = boost_v,
       rf_v = rf_v)
 ```
 
+    ##               Spec      Sens
+    ## boost_v 0.90668710 0.1499058
+    ## logit_v 0.32340061 0.7645435
+    ## reg_v   0.04890871 0.9885607
+    ## rf_v    0.16323506 0.9276657
+
 The boost model has much higher specificity compared to other models, making it a good candidate for our choice to predict violent recidivism.
 
 #### c) Calculating Calibration & Lift Curves
 
 A note: For some reason, the caret calibration function inverted our results. For example: in the case of the .875 to .925 bin, for which the calibration function estimated an observed event percentage of ~5%, manual calculations show the true observed event percentage was approximately 95%.
 
-```{r}
+``` r
 cal_results <- data.frame(recidivated = arrest_history_test$recidivated,
                            logit = recidivism_logit.pred$yes)
 
@@ -663,10 +607,15 @@ cal_results %>%
   summarise(n())
 ```
 
+    ## # A tibble: 2 x 2
+    ##   recidivated `n()`
+    ##   <fct>       <int>
+    ## 1 no             83
+    ## 2 yes          1190
 
 For this reason, we invert the y-axis on our calibration plots. This gives us plots like what we would expect to see.
 
-```{r Recidivism Calibration Plots}
+``` r
 cal_results <- data.frame(recidivated = arrest_history_test$recidivated,
                            logit = recidivism_logit.pred$yes,
                            reg = recidivism_reg.pred$yes,
@@ -682,14 +631,11 @@ cal_object$data$Percent <- ifelse(cal_object$data$Percent == 0, 0, 100 - cal_obj
 cal_object %>% plot(auto.key = list(columns = 3,
                                           lines = TRUE,
                                           points = FALSE))
-
-
 ```
-From this calibration curve, it appears that the logistic regression has slightly more stable performance than other models: At lower values of predicted probability, it stays closer to the diagonal than other models, such as our boosted tree.
 
+![](Figs/Recidivism%20Calibration%20Plots-1.png) From this calibration curve, it appears that the logistic regression has slightly more stable performance than other models: At lower values of predicted probability, it stays closer to the diagonal than other models, such as our boosted tree.
 
-```{r Violent Recidivism Calibration Plots}
-
+``` r
 cal_results_violent <- data.frame(recidivated_violent = arrest_history_violent_test$recidivated_violent,
                            logit = recidivism_violent_logit.pred$yes,
                            reg = recidivism_violent_reg.pred$yes,
@@ -704,13 +650,13 @@ cal_object$data$Percent <- ifelse(cal_object$data$Percent == 0, 0, 100 - cal_obj
 cal_object %>% plot(auto.key = list(columns = 3,
                                           lines = TRUE,
                                           points = FALSE))
-
 ```
+
+![](Figs/Violent%20Recidivism%20Calibration%20Plots-1.png)
 
 This calibration plot demonstrates that, when comparing predicted and observed probabilities of violent recidivism, all of our models perform poorly. Observed percentage is below 20% for all of our models.
 
-We could have used recalibration to fix this problem. 
-
+We could have used recalibration to fix this problem.
 
 ### 4.2 Choice of Model
 
@@ -722,37 +668,89 @@ Furthermore, the logistic regression's interpretability makes it desirable in ou
 
 For these reasons, we selected the logistic regression as our model predicting recidivism.
 
-
 #### b) Violent Recidivism
 
 Our boosted tree was our only model predicting violent recidivism that performed well in terms of specificity. A calibration plot showed no difference between the performance of our boosted tree and that of our other models.
 
 We selected our boosted tree as our model predicting violent recidivism.
 
-## 5. Important Variables
+5. Important Variables
+----------------------
 
 ### 5.1. Recidivism
 
-```{r}
+``` r
 varImp(recidivism_logit)
 ```
-For redicivism, age, recent criminal history, and misdemeanor status, and race accounted for the most important variables.
 
+    ## glm variable importance
+    ## 
+    ##   only 20 most important variables shown (out of 35)
+    ## 
+    ##                                      Overall
+    ## `arrest_age_categoryLess than 25`     100.00
+    ## charge_degree_.M2.TRUE                 69.51
+    ## prior_arrest_2yr                       69.50
+    ## charge_degree_.M1.TRUE                 51.58
+    ## charge_degree_.F3.TRUE                 48.62
+    ## prior_arrest_overall                   47.20
+    ## charge_degree_.MO3.TRUE                45.37
+    ## raceOther                              40.97
+    ## raceCaucasian                          40.30
+    ## charge_degree_.F1.TRUE                 35.39
+    ## juv_misd_count                         34.51
+    ## sexMale                                31.71
+    ## prior_arrest_5yr                       29.96
+    ## raceHispanic                           25.50
+    ## `arrest_age_categoryGreater than 45`   22.42
+    ## juv_other_count                        17.39
+    ## charge_degree_.F7.TRUE                 17.35
+    ## prior_prisontime_days                  14.97
+    ## prior_arrest_2yr_violent               12.99
+    ## charge_degree_.TC4.TRUE                11.47
+
+For redicivism, age, recent criminal history, and misdemeanor status, and race accounted for the most important variables.
 
 ### 5.2. Violent recidivism
 
-```{r}
+``` r
 varImp(recidivism_violent_logit)
 ```
+
+    ## glm variable importance
+    ## 
+    ##   only 20 most important variables shown (out of 34)
+    ## 
+    ##                                      Overall
+    ## prior_arrest_2yr                      100.00
+    ## prior_arrest_overall_violent           97.70
+    ## `arrest_age_categoryLess than 25`      78.94
+    ## charge_degree_.M2.TRUE                 65.88
+    ## `arrest_age_categoryGreater than 45`   47.25
+    ## juv_misd_count                         47.22
+    ## raceCaucasian                          47.13
+    ## charge_degree_.F3.TRUE                 35.18
+    ## charge_degree_.F7.TRUE                 35.15
+    ## charge_degree_.MO3.TRUE                34.18
+    ## charge_degree_.F1.TRUE                 31.72
+    ## prior_arrest_5yr                       29.60
+    ## raceOther                              27.71
+    ## charge_degree_.TCX.TRUE                22.88
+    ## prior_jailtime_days                    20.27
+    ## prior_prisontime_days                  16.58
+    ## prior_arrest_5yr_violent               15.93
+    ## raceHispanic                           15.17
+    ## charge_degree_.M1.TRUE                 14.83
+    ## charge_degree_.F2.TRUE                 14.47
+
 For violent recidivism, prior arrest within two years, the number of prior arrests associated with violent charge, age are important predictors.
 
-
-
-## 6. Racial, gender, and age bias
+6. Racial, gender, and age bias
+-------------------------------
 
 ### 6.1 Bias in recidivism
-```{r}
 
+``` r
 # summary(recidivism_logit)
 
 intercept <- recidivism_logit$finalModel$coefficients['(Intercept)']
@@ -764,19 +762,37 @@ misdemeanor_1 <- recidivism_logit$finalModel$coefficients["charge_degree_.M3.TRU
 
 control <- exp(intercept) / (1 + exp(intercept))
 exp(raceWhite) / (1 - control + (control * exp(raceWhite)))
-exp(ageYoung) / (1 - control + (control * exp(ageYoung)))
-exp(sexMale) / (1 - control + (control * exp(sexMale)))
-exp(misdemeanor_1) / (1 - control + (control * exp(misdemeanor_1)))
-
 ```
+
+    ## raceCaucasian 
+    ##      0.911014
+
+``` r
+exp(ageYoung) / (1 - control + (control * exp(ageYoung)))
+```
+
+    ## `arrest_age_categoryLess than 25` 
+    ##                          1.215722
+
+``` r
+exp(sexMale) / (1 - control + (control * exp(sexMale)))
+```
+
+    ##  sexMale 
+    ## 1.089477
+
+``` r
+exp(misdemeanor_1) / (1 - control + (control * exp(misdemeanor_1)))
+```
+
+    ## charge_degree_.M3.TRUE 
+    ##               1.944478
 
 According to the model, all else held constant, whites are 11% less likely to recidivate than blacks. Young people (those less than 25 years old) are predicted as being 20% more likely to recidivate than middle-aged people. Men are 9.5% more likely to recidivate than women. And if an arrest is charged as a 3rd degree Misdemeanor, it is twice as likely to be followed by recidivism than not.
 
 ### 6.2. Bias in violent recidivism
 
-```{r}
-
-
+``` r
 # summary(recidivism_violent_logit)
 
 
@@ -790,16 +806,26 @@ misdemeanor_1 <- recidivism_violent_logit$finalModel$coefficients["charge_degree
 
 control <- exp(intercept) / (1 + exp(intercept))
 exp(raceWhite) / (1 - control + (control * exp(raceWhite)))
-exp(ageYoung) / (1 - control + (control * exp(ageYoung)))
-exp(sexMale) / (1 - control + (control * exp(sexMale)))
-
-
-
-
 ```
 
-According to the model, all else held constant, whites are 17% less likely to recidivate than blacks. Young people (those less than 25 years old) are predicted as being 38% more likely to recidivate than middle-aged people. Men are 15% less likely to recidivate than women. 
+    ## raceCaucasian 
+    ##     0.8951291
 
+``` r
+exp(ageYoung) / (1 - control + (control * exp(ageYoung)))
+```
+
+    ## `arrest_age_categoryLess than 25` 
+    ##                          1.170656
+
+``` r
+exp(sexMale) / (1 - control + (control * exp(sexMale)))
+```
+
+    ##   sexMale 
+    ## 0.9630601
+
+According to the model, all else held constant, whites are 17% less likely to recidivate than blacks. Young people (those less than 25 years old) are predicted as being 38% more likely to recidivate than middle-aged people. Men are 15% less likely to recidivate than women.
 
 ### 6.3 Observed recidivism rates per-score level across demographic groups
 
@@ -807,13 +833,13 @@ In this section, we look for disparities in the observed recidivism rates of ind
 
 We performed this analysis across race, age, and sex.
 
-- Defining low, medium, and high risk categories
+-   Defining low, medium, and high risk categories
 
 We mapped our estimates of recidivism risk to low, medium, and high-risk categories. To allow for direct comparison to the COMPAS scores, we developed a method of mapping recidivism risk estimates to risk categories.
 
 First, we calculated deciles of predicted (violent) recidivism risk. Then, we mapped arrest events in deciles 0-4 to low-risk, events in deciles 5-8 to medium-risk, and events in deciles 9-10 to high risk.
 
-```{r}
+``` r
 deciles <- c(.1, .2, .3, .4, .5, .6, .7, .8, .9, 1)
 
 deciles <- quantile(recidivism_logit.pred$yes, deciles) # generates deciles based on predicted probabilities
@@ -843,47 +869,65 @@ arrest_history_test <- cbind(arrest_history_test, predict(recidivism_logit, arre
 
 #### a) Racial bias
 
-```{r}
+``` r
 arrest_history_test %>% 
   group_by(score_text, race) %>% 
   summarise(recid_ppn = sum(recidivated == 'yes') / n()) %>% 
   pivot_wider(names_from = score_text, values_from = recid_ppn)
-
 ```
+
+    ## # A tibble: 6 x 4
+    ##   race               Low Medium  High
+    ##   <fct>            <dbl>  <dbl> <dbl>
+    ## 1 African-American 0.561  0.796 0.924
+    ## 2 Asian            0.5    0.889 1    
+    ## 3 Caucasian        0.590  0.792 0.922
+    ## 4 Hispanic         0.485  0.773 0.935
+    ## 5 Native American  0.778  0.85  0.941
+    ## 6 Other            0.546  0.841 0.953
 
 This analysis shows no strong evidence of racial bias. Individuals classified as high-risk were approximately equally likely to recidivate (~93% probability) across all of the high-n racial groups. Medium and low-risk classifications saw only slightly more variation. However, there was very little difference in the probabilities of recidivism of African Americans and Caucasians in these categories.
 
 #### b) Age bias
 
-```{r age}
-
+``` r
 arrest_history_test %>% 
   group_by(score_text, arrest_age_category) %>% 
   summarise(recid_ppn = sum(recidivated == 'yes') / n()) %>% 
   pivot_wider(names_from = score_text, values_from = recid_ppn)
-
 ```
 
-This analysis shows evidence of a small disparity in observed probability of recidivism of high-risk individuals, across age. Mainly, high-risk classified individuals in the >45 age group were approximately 3 percentage points less likely to recidivate than individuals in the 25-45 age group, indicating slight bias against those in the oldest age group.
+    ## # A tibble: 3 x 4
+    ##   arrest_age_category   Low Medium  High
+    ##   <fct>               <dbl>  <dbl> <dbl>
+    ## 1 25 - 45             0.587  0.827 0.936
+    ## 2 Greater than 45     0.497  0.790 0.900
+    ## 3 Less than 25        0.588  0.765 0.919
+
+This analysis shows evidence of a small disparity in observed probability of recidivism of high-risk individuals, across age. Mainly, high-risk classified individuals in the &gt;45 age group were approximately 3 percentage points less likely to recidivate than individuals in the 25-45 age group, indicating slight bias against those in the oldest age group.
 
 Furthermore, younger low-risk classified individuals were much more likely to reoffend (approximately 9 percentage points) than the oldest low-risk classified individuals.
 
-
 #### c) Gender bias
 
-```{r gender}
+``` r
 arrest_history_test %>% 
   group_by(score_text, sex) %>% 
   summarise(recid_ppn = sum(recidivated == 'yes') / n()) %>% 
   pivot_wider(names_from = score_text, values_from = recid_ppn)
 ```
 
-This analysis shows little evidence of a disparity in observed probability of recidivism across sex. Men and women were approximately equally likely to reoffend in each risk category.
+    ## # A tibble: 2 x 4
+    ##   sex      Low Medium  High
+    ##   <fct>  <dbl>  <dbl> <dbl>
+    ## 1 Female 0.563  0.791 0.944
+    ## 2 Male   0.566  0.795 0.923
 
+This analysis shows little evidence of a disparity in observed probability of recidivism across sex. Men and women were approximately equally likely to reoffend in each risk category.
 
 ### 6.4 Observed violent recidivism rates per-score level across demographic groups
 
-```{r}
+``` r
 deciles <- c(.1, .2, .3, .4, .5, .6, .7, .8, .9, 1)
 
 
@@ -912,64 +956,70 @@ arrest_history_violent_test <- cbind(arrest_history_violent_test, predict(recidi
          score_text = factor(score_text, c('Low', 'Medium', 'High')))
 ```
 
-
 #### a) Racial bias
 
-```{r}
-
+``` r
 arrest_history_violent_test %>% 
   group_by(score_text, race) %>% 
   summarise(recid_ppn = sum(recidivated_violent == 'yes') / n()) %>% 
   pivot_wider(names_from = score_text, values_from = recid_ppn)
-
-
 ```
+
+    ## # A tibble: 6 x 4
+    ##   race                 Low  Medium  High
+    ##   <fct>              <dbl>   <dbl> <dbl>
+    ## 1 African-American  0.0377  0.0623 0.185
+    ## 2 Asian             0.0488 NA      0    
+    ## 3 Caucasian         0.0354  0.0701 0.157
+    ## 4 Hispanic          0.0181  0.0554 0.130
+    ## 5 Other             0.0219  0.0840 0.283
+    ## 6 Native American  NA       0.0952 0.2
 
 We see evidence of a small disparity in probability of violent reoffense across race within risk groups. Caucasians classified as high-risk are slightly (3 percentage points) less likely to violently reoffend than African Americans. And high-risk Hispanics are significantly (6 percentage points) less likely to violently reoffend than African Americans.
 
 Medium and low-risk classifications see only small variations in probability of reoffense across race.
 
-
-
 #### b) Age bias
 
-```{r}
-
+``` r
 arrest_history_violent_test %>% 
   group_by(score_text, arrest_age_category) %>% 
   summarise(recid_ppn = sum(recidivated_violent == 'yes') / n()) %>% 
   pivot_wider(names_from = score_text, values_from = recid_ppn)
-
-
 ```
+
+    ## # A tibble: 3 x 4
+    ##   arrest_age_category    Low Medium  High
+    ##   <fct>                <dbl>  <dbl> <dbl>
+    ## 1 25 - 45             0.0371 0.0593 0.185
+    ## 2 Greater than 45     0.0243 0.0474 0.113
+    ## 3 Less than 25        0.0443 0.0711 0.184
 
 There appears to be significant bias in our classifications across age group. Mainly, high-risk classified individuals in the oldest age category are approximately 8 percentage points less likely to violently reoffend than younger individuals classified as high risk.
 
 Medium and low-risk classifications see only small variations in probability of violent reoffense across race.
 
-
-
 #### c) Gender bias
 
-```{r}
-
+``` r
 arrest_history_violent_test %>% 
   group_by(score_text, sex) %>% 
   summarise(recid_ppn = sum(recidivated_violent == 'yes') / n()) %>% 
   pivot_wider(names_from = score_text, values_from = recid_ppn)
-
 ```
+
+    ## # A tibble: 2 x 4
+    ##   sex       Low Medium  High
+    ##   <fct>   <dbl>  <dbl> <dbl>
+    ## 1 Female 0.0195 0.0527 0.161
+    ## 2 Male   0.0363 0.0676 0.180
 
 Men and women within the same risk classifications are approximately equally likely to reoffend violently.
 
+7. Comparing with COMPAS
+------------------------
 
-
-
-
-
-## 7. Comparing with COMPAS
-
-For this section, we will compare the predictions of our model on test data with COMPAS's risk assessments. 
+For this section, we will compare the predictions of our model on test data with COMPAS's risk assessments.
 
 ### 7. 1 Recidivism
 
@@ -977,12 +1027,9 @@ For this section, we will compare the predictions of our model on test data with
 
 We first create a dataset that combines scores from COMPAS's recidivism risk assessment with our own scores.
 
-We subset this data so that each row represents an arrest event that is both:
-  a.) In our test set
-  b.) In the set of arrests assessed by COMPAS
-ensuring that we're comparing test set predictions by both models.
+We subset this data so that each row represents an arrest event that is both: a.) In our test set b.) In the set of arrests assessed by COMPAS ensuring that we're comparing test set predictions by both models.
 
-```{r creating decile scores r}
+``` r
 ## must be run after train(recidivism_logit)
 
 deciles <- c(.1, .2, .3, .4, .5, .6, .7, .8, .9, 1)
@@ -1020,7 +1067,7 @@ arrest_history_comparison <- cbind(arrest_history_comparison, predict(recidivism
          score_text = factor(score_text, c('Low', 'Medium', 'High')))
 ```
 
-```{r loading compas data}
+``` r
 conn <- dbConnect(drv = dbDriver('SQLite'), # tells R to use SQLite
                             '../Data/modified/compas.db') # tells R the location of our .db file
 
@@ -1035,7 +1082,7 @@ compas <- dbGetQuery(conn, statement = '
          compas_score_text = score_text)
 ```
 
-```{r}
+``` r
 joined_score_data <- arrest_history_comparison %>% # Joining the two datasets on the basis of person ID & arrest_date
   left_join(compas, by=c('arrest_date', 'person_id')) %>% 
   filter(!is.na(compas_decile_score)) # Removing rows not assessed by COMPAS
@@ -1043,7 +1090,7 @@ joined_score_data <- arrest_history_comparison %>% # Joining the two datasets on
 
 #### b) Score Group Sizes
 
-```{r comparing proportion of scores}
+``` r
 inner_join(joined_score_data %>% 
   group_by(score_text) %>% 
   summarise(score_ppn = n() / nrow(joined_score_data)),
@@ -1053,13 +1100,20 @@ joined_score_data %>%
   summarise(compas_score_ppn = n() / nrow(joined_score_data)),
 
 by = c('score_text' = 'compas_score_text'))
-
 ```
+
+    ## # A tibble: 3 x 3
+    ##   score_text score_ppn compas_score_ppn
+    ##   <chr>          <dbl>            <dbl>
+    ## 1 Low            0.480            0.539
+    ## 2 Medium         0.394            0.259
+    ## 3 High           0.126            0.201
+
 Our model classifies a much lower proportion of individuals as high- or low-risk, than does COMPAS, meaning that it classifies many more individuals as medium risk.
 
 #### c) Observed Recidivism Probability by Score Level
 
-```{r recidivism risk by score level r}
+``` r
 recid_proportion <- joined_score_data %>% 
   group_by(score_text) %>% 
   summarise(recid_proportion = sum(recidivated == 'yes') / n())
@@ -1072,38 +1126,76 @@ compas_recid_proportion <- joined_score_data %>%
 left_join(recid_proportion, compas_recid_proportion, by = c('score_text' = 'compas_score_text')) %>% arrange(desc(recid_proportion))
 ```
 
+    ## # A tibble: 3 x 3
+    ##   score_text recid_proportion compas_recid_proportion
+    ##   <chr>                 <dbl>                   <dbl>
+    ## 1 High                  0.864                   0.835
+    ## 2 Medium                0.658                   0.688
+    ## 3 Low                   0.414                   0.409
+
 Both models' score levels correspond to very similar recidivism risks.
 
-```{r recidivism risk by score level and race}
+``` r
 # African American, Caucasian, and Hispanic individuals are most highly represented in the data.
 
 joined_score_data %>% 
   group_by(race) %>% 
   summarise(n())
+```
 
+    ## # A tibble: 6 x 2
+    ##   race             `n()`
+    ##   <fct>            <int>
+    ## 1 African-American  2807
+    ## 2 Asian               27
+    ## 3 Caucasian         1934
+    ## 4 Hispanic           461
+    ## 5 Native American     18
+    ## 6 Other              299
+
+``` r
 joined_score_data %>% 
   group_by(score_text, race) %>% 
   summarise(recid_ppn = sum(recidivated == 'yes') / n()) %>% 
   pivot_wider(names_from = score_text, values_from = recid_ppn)
+```
 
+    ## # A tibble: 6 x 4
+    ##   race               Low Medium  High
+    ##   <fct>            <dbl>  <dbl> <dbl>
+    ## 1 African-American 0.429  0.674 0.867
+    ## 2 Asian            0.28   1     1    
+    ## 3 Caucasian        0.427  0.627 0.83 
+    ## 4 Hispanic         0.351  0.637 0.833
+    ## 5 Native American  0.625  0.667 1    
+    ## 6 Other            0.388  0.6   1
+
+``` r
 joined_score_data %>% 
   group_by(compas_score_text, race) %>% 
   summarise(recid_ppn = sum(recidivated == 'yes') / n()) %>% 
   pivot_wider(names_from = compas_score_text, values_from = recid_ppn)
 ```
 
-In our model's predictions, recidivism rate per score-group is very similar across race (in the case of the three well-represented race groups, African-Americans, Caucasians, and Hispanics). 
+    ## # A tibble: 6 x 5
+    ##   race              High   Low Medium `N/A`
+    ##   <fct>            <dbl> <dbl>  <dbl> <dbl>
+    ## 1 African-American 0.843 0.451  0.694   1  
+    ## 2 Asian            1     0.2    0.6    NA  
+    ## 3 Caucasian        0.814 0.394  0.702   0.2
+    ## 4 Hispanic         0.745 0.361  0.622  NA  
+    ## 5 Native American  1     0.714  0.571  NA  
+    ## 6 Other            0.889 0.362  0.583   0
 
-Recidivism rate per-score group varies among racial groups in the COMPAS model. Mainly, within the high risk group, African Americans are about 3 percentage points more likely to recidivate than Caucasians, and Hispanics are about 7 percentage points less likely to recidivate than Caucasians. 
+In our model's predictions, recidivism rate per score-group is very similar across race (in the case of the three well-represented race groups, African-Americans, Caucasians, and Hispanics).
+
+Recidivism rate per-score group varies among racial groups in the COMPAS model. Mainly, within the high risk group, African Americans are about 3 percentage points more likely to recidivate than Caucasians, and Hispanics are about 7 percentage points less likely to recidivate than Caucasians.
 
 This suggests that our model's score level classifications may be more equitable by race, than COMPAS's.
 
-
-
 ### 7. 2 Violent Recidivism
 
-
-```{r creating decile scores vr}
+``` r
 ## must be run after train(recidivism_logit)
 
 deciles <- c(.1, .2, .3, .4, .5, .6, .7, .8, .9, 1)
@@ -1140,7 +1232,7 @@ arrest_history_violent_comparison <- cbind(arrest_history_violent_comparison, pr
                                 TRUE ~ 'High'))
 ```
 
-```{r}
+``` r
 conn <- dbConnect(drv = dbDriver('SQLite'), # tells R to use SQLite
                             '../Data/modified/compas.db') # tells R the location of our .db file
 
@@ -1155,7 +1247,7 @@ compas_violent <- dbGetQuery(conn, statement = '
          compas_score_text = score_text)
 ```
 
-```{r}
+``` r
 joined_score_data_violent <- arrest_history_violent_comparison %>% # Joining the two datasets on the basis of person ID & arrest_date
   left_join(compas, by=c('arrest_date', 'person_id')) %>% 
   filter(!is.na(compas_decile_score)) %>%  # Removing rows not assessed by COMPAS
@@ -1165,7 +1257,7 @@ joined_score_data_violent <- arrest_history_violent_comparison %>% # Joining the
 
 #### a) Score Group Sizes
 
-```{r comparing proportion of scores r}
+``` r
 inner_join(joined_score_data_violent %>% 
   group_by(score_text) %>% 
   summarise(score_ppn = n() / nrow(joined_score_data)),
@@ -1175,13 +1267,20 @@ joined_score_data_violent %>%
   summarise(compas_score_ppn = n() / nrow(joined_score_data)),
 
 by = c('score_text' = 'compas_score_text'))
-
 ```
+
+    ## # A tibble: 3 x 3
+    ##   score_text score_ppn compas_score_ppn
+    ##   <fct>          <dbl>            <dbl>
+    ## 1 High           0.118            0.160
+    ## 2 Medium         0.379            0.228
+    ## 3 Low            0.413            0.521
+
 Again, our model classifies a higher proportion of individuals as medium-risk, and fewer as low- or high-risk, than does COMPAS.
 
 #### b) Observed Recidivism Probability by Score Level
 
-```{r recidivism risk by score level}
+``` r
 recid_proportion <- joined_score_data_violent %>% 
   group_by(score_text) %>% 
   summarise(violent_recid_proportion = sum(recidivated_violent == 'yes') / n())
@@ -1194,27 +1293,69 @@ compas_recid_proportion <- joined_score_data_violent %>%
 left_join(recid_proportion, compas_recid_proportion, by = c('score_text' = 'compas_score_text')) %>% arrange(desc(violent_recid_proportion))
 ```
 
+    ## # A tibble: 3 x 3
+    ##   score_text violent_recid_proportion compas_violent_recid_proportion
+    ##   <fct>                         <dbl>                           <dbl>
+    ## 1 High                         0.104                           0.100 
+    ## 2 Medium                       0.0509                          0.0594
+    ## 3 Low                          0.0231                          0.0222
+
 Both models' score levels are associated with very similar probabilities of violent recidivism.
 
-```{r recidivism risk by score level and race r}
+``` r
 # African American, Caucasian, and Hispanic individuals are most highly represented in the data.
 
 joined_score_data_violent %>% 
   group_by(race) %>% 
   summarise(n())
+```
 
+    ## # A tibble: 6 x 2
+    ##   race             `n()`
+    ##   <fct>            <int>
+    ## 1 African-American  2503
+    ## 2 Asian               28
+    ## 3 Caucasian         1771
+    ## 4 Hispanic           436
+    ## 5 Native American     11
+    ## 6 Other              298
+
+``` r
 joined_score_data_violent %>% 
   group_by(score_text, race) %>% 
   summarise(recid_ppn = sum(recidivated_violent == 'yes') / n()) %>% 
   pivot_wider(names_from = score_text, values_from = recid_ppn) %>% 
   arrange(race)
+```
 
+    ## # A tibble: 6 x 4
+    ##   race                High Medium    Low
+    ##   <fct>              <dbl>  <dbl>  <dbl>
+    ## 1 African-American  0.107  0.0502 0.0217
+    ## 2 Asian            NA      0.0909 0     
+    ## 3 Caucasian         0.0860 0.0591 0.0263
+    ## 4 Hispanic          0.0345 0.0368 0.0184
+    ## 5 Native American   0      0      0.25  
+    ## 6 Other             0.267  0.0286 0.0141
+
+``` r
 joined_score_data_violent %>% 
   group_by(compas_score_text, race) %>% 
   summarise(recid_ppn = sum(recidivated_violent == 'yes') / n()) %>% 
   pivot_wider(names_from = compas_score_text, values_from = recid_ppn) %>% 
   arrange(race)
 ```
+
+    ## # A tibble: 6 x 5
+    ##   race               High Medium    Low  `NA`
+    ##   <fct>             <dbl>  <dbl>  <dbl> <dbl>
+    ## 1 African-American 0.102  0.0548 0.0230    NA
+    ## 2 Asian            0      0.167  0         NA
+    ## 3 Caucasian        0.102  0.0737 0.0213     0
+    ## 4 Hispanic         0.0556 0.0395 0.0216    NA
+    ## 5 Native American  0      0      0.25      NA
+    ## 6 Other            0.133  0.0417 0.0214     0
+
 In our model, probability of violent recidivism varies between race groups. African Americans rated as high-risk are slightly more likely than Caucasians to reoffend violently. And high-risk Hispanics are significantly (5 percentage points) less likely.
 
 In COMPAS's predictions, observed probability is basically the same for high-risk African Americans and Caucasians, but significantly lower (~5 percentage points) for high-risk Hispanics.
