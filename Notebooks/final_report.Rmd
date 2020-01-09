@@ -35,16 +35,16 @@ In sections 5, 6, and 7, we analyze our final models: determining variable impor
 
 Our source data was published by ProPublica, in [their analysis of the COMPAS risk assessment tool](https://github.com/propublica/compas-analysis).
 
-## Problem Framing
+### Problem Framing
 
-Our model predicts risk of recidivism and risk of violent recidivism within 2 years of a given arrest.
+We develop a models to predict the risk that an individual who has just been arrested will be charged for another crime of misdemeanor class (or more severe) within the next two years (likewise for violent crimes).
 
 ## 1. Data Processing
 
 ### 1.1. Introduction
 
 #### a) compas.db
-Our data source is a sqlite database file. It includes 5 relevant tables:
+Our source data is a [sqlite database file sourced from ProPublica's Github](https://github.com/propublica/compas-analysis/blob/master/compas.db). It includes 5 relevant tables:
 
 Name | Description
 :-|-
