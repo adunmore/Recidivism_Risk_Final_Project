@@ -30,7 +30,7 @@ SELECT distinct person_id,
 
 # setting up our database connection
 conn <- dbConnect(drv = dbDriver('SQLite'), # tells R to use SQLite
-                  'Data/compas.db') # tells R the location of our .db file
+                  'Data/modified/compas.db') # tells R the location of our .db file
 
 arrest_history_raw <- dbGetQuery(conn = conn,
            statement = statement)
@@ -83,6 +83,6 @@ arrest_history <- arrest_history %>%
   select(-recidivated_violent)
 
 
-write_csv(arrest_history, 'Data/arrest_history.csv')
-write_csv(arrest_history_violent, 'Data/arrest_history_violent.csv')
-write_csv(arrest_history_raw, 'Data/arrest_history_raw.csv')
+write_csv(arrest_history, 'Data/modified/arrest_history.csv')
+write_csv(arrest_history_violent, 'Data/modified/arrest_history_violent.csv')
+write_csv(arrest_history_raw, 'Data/modified/arrest_history_raw.csv')
