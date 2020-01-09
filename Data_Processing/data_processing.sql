@@ -127,7 +127,7 @@ WITH casearrest_temp AS
             date(arrest_date, '+2 year') AS arrest_date_2yr,
             date(arrest_date, '+5 year') AS arrest_date_5yr
 		FROM casearrest JOIN charge USING(id)
-		WHERE charge_degree != '(0)')
+		WHERE casearrest.charge_degree != '(0)')
 		
 UPDATE casearrest
 SET prior_arrest_overall = 
