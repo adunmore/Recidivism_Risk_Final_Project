@@ -1,6 +1,6 @@
 ---
 title: 'Predicting Recidivism in Broward County'
-author: 'π-lence of the Lambs: Aaron Dunmore (adunmore@andrew.cmu.edu) and Minseon Lee (minseonl@andrew.cmu.edu)'
+author: '[Aaron Dunmore](mailto:adunmore@andrew.cmu.edu) and [Minseon Lee] (mailto:minseonl@andrew.cmu.edu)'
 output:
   github_document:
   toc: TRUE
@@ -19,12 +19,25 @@ compas <- dbGetQuery(conn = conn,
            statement = 'select * from casearrest
                           JOIN people on casearrest.person_id = people.id')
 ```
- 
+## Introduction
+
+In this project, we analyze a large data set of ~100k records of criminal charges, taken from the Broward County, FL court system. We create, evaluate, and validate models predicting risk of recidivism, and risk of violent recidivism.
+
+In section 1, we detail our data processing steps. After exploring the data, we synthesized several variables to use in our analysis.
+
+In section 2, we discuss some basic findings from exploratory analysis, establishing preliminary evidence of links between recidivism and the independent variables we have selected.
+
+In section 3, we train 5 different models to predict risk of recidivism and risk of violent recidivism.
+
+In section 4, we evaluate our models, and choose a model for each problem.
+
+In sections 5, 6, and 7, we analyze our final models: determining variable importance, studying whether our models' predictions were biased across demographic groups, and comparing our models' performances to the performance of the COMPAS risk assessment tool.
+
+Our source data was published by ProPublica, in [their analysis of the COMPAS risk assessment tool](https://github.com/propublica/compas-analysis).
+
 ## Problem Framing
 
 Our model predicts risk of recidivism and risk of violent recidivism within 2 years of a given arrest.
-
-(more here, probably)
 
 ## 1. Data Processing
 

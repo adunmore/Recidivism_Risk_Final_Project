@@ -1,13 +1,28 @@
 Predicting Recidivism in Broward County
 ================
-π-lence of the Lambs: Aaron Dunmore (ID: adunmore) and Minseon Lee (ID: minseonl)
+[Aaron Dunmore](mailto:adunmore@andrew.cmu.edu) and \[Minseon Lee\] ([mailto:minseonl@andrew.cmu.edu](mailto:minseonl@andrew.cmu.edu))
+
+Introduction
+------------
+
+In this project, we analyze a large data set of ~100k records of criminal charges, taken from the Broward County, FL court system. We create, evaluate, and validate models predicting risk of recidivism, and risk of violent recidivism.
+
+In section 1, we detail our data processing steps. After exploring the data, we synthesized several variables to use in our analysis.
+
+In section 2, we discuss some basic findings from exploratory analysis, establishing preliminary evidence of links between recidivism and the independent variables we have selected.
+
+In section 3, we train 5 different models to predict risk of recidivism and risk of violent recidivism.
+
+In section 4, we evaluate our models, and choose a model for each problem.
+
+In sections 5, 6, and 7, we analyze our final models: determining variable importance, studying whether our models' predictions were biased across demographic groups, and comparing our models' performances to the performance of the COMPAS risk assessment tool.
+
+Our source data was published by ProPublica, in [their analysis of the COMPAS risk assessment tool](https://github.com/propublica/compas-analysis).
 
 Problem Framing
 ---------------
 
 Our model predicts risk of recidivism and risk of violent recidivism within 2 years of a given arrest.
-
-(more here, probably)
 
 1. Data Processing
 ------------------
@@ -587,7 +602,7 @@ rbind(boost_v = boost_v,
 
     ##               Spec      Sens
     ## boost_v 0.90668710 0.1499058
-    ## logit_v 0.32340061 0.7645435
+    ## logit_v 0.30704077 0.7709583
     ## reg_v   0.04890871 0.9885607
     ## rf_v    0.16323506 0.9276657
 
@@ -722,26 +737,26 @@ varImp(recidivism_violent_logit)
     ##   only 20 most important variables shown (out of 34)
     ## 
     ##                                      Overall
-    ## prior_arrest_2yr                      100.00
-    ## prior_arrest_overall_violent           97.70
-    ## `arrest_age_categoryLess than 25`      78.94
-    ## charge_degree_.M2.TRUE                 65.88
-    ## `arrest_age_categoryGreater than 45`   47.25
-    ## juv_misd_count                         47.22
-    ## raceCaucasian                          47.13
-    ## charge_degree_.F3.TRUE                 35.18
-    ## charge_degree_.F7.TRUE                 35.15
-    ## charge_degree_.MO3.TRUE                34.18
-    ## charge_degree_.F1.TRUE                 31.72
-    ## prior_arrest_5yr                       29.60
-    ## raceOther                              27.71
-    ## charge_degree_.TCX.TRUE                22.88
-    ## prior_jailtime_days                    20.27
-    ## prior_prisontime_days                  16.58
-    ## prior_arrest_5yr_violent               15.93
-    ## raceHispanic                           15.17
-    ## charge_degree_.M1.TRUE                 14.83
-    ## charge_degree_.F2.TRUE                 14.47
+    ## prior_arrest_overall_violent          100.00
+    ## prior_arrest_2yr                       95.34
+    ## `arrest_age_categoryLess than 25`      84.56
+    ## charge_degree_.M2.TRUE                 61.78
+    ## `arrest_age_categoryGreater than 45`   46.17
+    ## charge_degree_.F7.TRUE                 43.87
+    ## raceCaucasian                          43.65
+    ## juv_misd_count                         40.20
+    ## charge_degree_.F3.TRUE                 38.46
+    ## charge_degree_.MO3.TRUE                37.28
+    ## raceOther                              30.91
+    ## charge_degree_.F1.TRUE                 25.97
+    ## prior_jailtime_days                    22.91
+    ## charge_degree_.TCX.TRUE                22.31
+    ## prior_arrest_5yr                       20.47
+    ## prior_arrest_5yr_violent               20.15
+    ## juv_other_count                        19.52
+    ## charge_degree_.M1.TRUE                 15.78
+    ## charge_degree_.F2.TRUE                 15.13
+    ## raceHispanic                           13.88
 
 For violent recidivism, prior arrest within two years, the number of prior arrests associated with violent charge, age are important predictors.
 
@@ -809,21 +824,21 @@ exp(raceWhite) / (1 - control + (control * exp(raceWhite)))
 ```
 
     ## raceCaucasian 
-    ##     0.8951291
+    ##     0.9042455
 
 ``` r
 exp(ageYoung) / (1 - control + (control * exp(ageYoung)))
 ```
 
     ## `arrest_age_categoryLess than 25` 
-    ##                          1.170656
+    ##                          1.180502
 
 ``` r
 exp(sexMale) / (1 - control + (control * exp(sexMale)))
 ```
 
     ##   sexMale 
-    ## 0.9630601
+    ## 0.9716701
 
 According to the model, all else held constant, whites are 17% less likely to recidivate than blacks. Young people (those less than 25 years old) are predicted as being 38% more likely to recidivate than middle-aged people. Men are 15% less likely to recidivate than women.
 
@@ -968,12 +983,12 @@ arrest_history_violent_test %>%
     ## # A tibble: 6 x 4
     ##   race                 Low  Medium  High
     ##   <fct>              <dbl>   <dbl> <dbl>
-    ## 1 African-American  0.0377  0.0623 0.185
+    ## 1 African-American  0.0363  0.0632 0.185
     ## 2 Asian             0.0488 NA      0    
-    ## 3 Caucasian         0.0354  0.0701 0.157
-    ## 4 Hispanic          0.0181  0.0554 0.130
-    ## 5 Other             0.0219  0.0840 0.283
-    ## 6 Native American  NA       0.0952 0.2
+    ## 3 Caucasian         0.0332  0.0713 0.157
+    ## 4 Hispanic          0.0159  0.0559 0.128
+    ## 5 Other             0.0241  0.0917 0.281
+    ## 6 Native American  NA       0.105  0.176
 
 We see evidence of a small disparity in probability of violent reoffense across race within risk groups. Caucasians classified as high-risk are slightly (3 percentage points) less likely to violently reoffend than African Americans. And high-risk Hispanics are significantly (6 percentage points) less likely to violently reoffend than African Americans.
 
@@ -991,9 +1006,9 @@ arrest_history_violent_test %>%
     ## # A tibble: 3 x 4
     ##   arrest_age_category    Low Medium  High
     ##   <fct>                <dbl>  <dbl> <dbl>
-    ## 1 25 - 45             0.0371 0.0593 0.185
-    ## 2 Greater than 45     0.0243 0.0474 0.113
-    ## 3 Less than 25        0.0443 0.0711 0.184
+    ## 1 25 - 45             0.0358 0.0621 0.184
+    ## 2 Greater than 45     0.0236 0.0561 0.109
+    ## 3 Less than 25        0.0370 0.0699 0.185
 
 There appears to be significant bias in our classifications across age group. Mainly, high-risk classified individuals in the oldest age category are approximately 8 percentage points less likely to violently reoffend than younger individuals classified as high risk.
 
@@ -1011,8 +1026,8 @@ arrest_history_violent_test %>%
     ## # A tibble: 2 x 4
     ##   sex       Low Medium  High
     ##   <fct>   <dbl>  <dbl> <dbl>
-    ## 1 Female 0.0195 0.0527 0.161
-    ## 2 Male   0.0363 0.0676 0.180
+    ## 1 Female 0.0177 0.0566 0.163
+    ## 2 Male   0.0354 0.0678 0.179
 
 Men and women within the same risk classifications are approximately equally likely to reoffend violently.
 
