@@ -5,7 +5,7 @@ We process a large (100k records) data set of arrest records, and train models p
 ### Attributions
 I share co-authorship with [Minseon Lee](mailto:minseonl@andrew.cmu.edu). She has hosted this project [on her github](github.com/mins-lee/recidivism-prediction). 
 
-The data for this project was published by ProPublica, in [their analysis](github.com/propublica/compas-analysis) of the COMPAS recidivism risk assessment index. 
+The data for this project was published by ProPublica, in [their analysis](github.com/propublica/compas-analysis) of the COMPAS recidivism risk assessment instrument. 
 
 This project was completed for [95791 Data Mining at CMU Heinz College, taught by Prof. Alexandra Chouldechova](https://www.andrew.cmu.edu/user/achoulde/95791/index.html)
 
@@ -15,15 +15,15 @@ This project was completed for [95791 Data Mining at CMU Heinz College, taught b
 
 This repository contains the source code and data required to build the project from scratch.
 
-Before executing Notebooks/final_report.Rmd, simply run Data_Processing/data_processing.sh. This shell script:
-   - creates temp folders Data/modified/ and Cache/
-   - creates a copy of the source data (Data/compas.db) in Data/modified/compas.db
-   - in the copy of the source data, executes data_processing.sql, which creates a number of additional variables, and makes several changes optimizing performance (adding indexes, denormalizing tables).
-   - executes data_export.R, which generates several temporary .csv files in Data/modified, which are used by the modeling code.
+Before executing `Notebooks/final_report.Rmd`, simply run `data_processing.sh`. This shell script:
+   - creates temp folders `Data/modified/` and `Cache/`
+   - creates a copy of the source data (`Data/compas.db`) in `Data/modified/compas.db`
+   - in the copy of the source data, executes `data_processing.sql`, which creates a number of additional variables, and makes several changes optimizing performance (adding indexes, denormalizing tables).
+   - executes `data_export.R`, generating several temporary .csv files in `Data/modified`, which are used by the modeling code.
 
-Note that final_report.Rmd and data_export.R each require several R packages as prerequisites. These must be installed manually.
+Note that `final_report.Rmd` and `data_export.R` each require several R packages as prerequisites. These must be installed manually.
 ### final_report.Rmd
 
-This notebook is the main product of this project. It contains all of the code for our exploratory analysis, model training and selection, and model evaluation.This document renders to final_report.md.
+This notebook is the main product of this project. It contains all of the code for our exploratory analysis, model training and selection, and model evaluation.This document renders to `final_report.md`.
 ### Cache/
-We cache models that are performance-intensive to train in Cache/. If you would like to train all models as new, be sure to delete the contents of Cache/.
+We cache models that are performance-intensive to train in `Cache/`. If you would like to train all models as new, be sure to delete the contents of `Cache/`.
