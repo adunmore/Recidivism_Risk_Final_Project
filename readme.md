@@ -9,7 +9,7 @@ This repository contains the source code and data required to build the project 
 Before executing Notebooks/final_report.Rmd, simply run Data_Processing/data_processing.sh. This shell script:
    - creates temp folders Data/modified/ and Cache/
    - creates a copy of the source data (Data/compas.db) in Data/modified/compas.db
-   - in the copy of the source data, executes data_processing.sql, which creates a number of additional variables, and makes several changes optimizing performance (adding indeces, denormalizing tables).
+   - in the copy of the source data, executes data_processing.sql, which creates a number of additional variables, and makes several changes optimizing performance (adding indexes, denormalizing tables).
    - executes data_export.R, which generates several temporary .csv files in Data/modified, which are used by the modeling code.
 
 Note that final_report.Rmd and data_export.R each require several R packages as prerequisites. These must be installed manually.
