@@ -1,11 +1,9 @@
 ## Introduction
 ### About This Project
-This repository contains a group project produced by [Aaron Dunmore](mailto:adunmore@andrew.cmu.edu) and [Minseon Lee](mailto:minseonl@andrew.cmu.edu) for  
-
 We process a large (100k records) data set of arrest records, and train models predicting risk of two-year recidivism and two-year violent recidivism at time of arrest. We then evaluate our models, comparing their performance to that of a professional model, and assessing whether they perform differently among different demographic categories. 
 
 ### Attributions
-I share co-authorship with Minseon Lee. She has hosted this project [on her github](github.com/mins-lee/recidivism-prediction). 
+I share co-authorship with [Minseon Lee](mailto:minseonl@andrew.cmu.edu). She has hosted this project [on her github](github.com/mins-lee/recidivism-prediction). 
 
 The data for this project was published by ProPublica, in [their analysis](github.com/propublica/compas-analysis) of the COMPAS recidivism risk assessment index. 
 
