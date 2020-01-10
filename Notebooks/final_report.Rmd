@@ -1,6 +1,6 @@
 ---
 title: 'Predicting Recidivism in Broward County'
-author: '[Aaron Dunmore](mailto:adunmore@andrew.cmu.edu) and [Minseon Lee] (mailto:minseonl@andrew.cmu.edu)'
+author: '[Aaron Dunmore](mailto:adunmore@andrew.cmu.edu) and [Minseon Lee](mailto:minseonl@andrew.cmu.edu)'
 output:
   github_document:
   toc: TRUE
@@ -39,8 +39,8 @@ Our source data was published by ProPublica, in [their analysis of the COMPAS ri
 
 We develop a models to predict the risk that an individual who has just been arrested will be charged for another crime of misdemeanor class (or more severe) within the next two years (likewise for violent crimes).
 
-## 1. Data Processing
 
+## 1. Data Processing
 ### 1.1. Introduction
 
 #### a) compas.db

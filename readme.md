@@ -1,5 +1,8 @@
 ## Introduction
-  TODO
+This repository contains a group project produced by [Aaron Dunmore](mailto:adunmore@andrew.cmu.edu) and [Minseon Lee](mailto:minseonl@andrew.cmu.edu) for 95791 Data Mining at CMU Heinz College.  
+
+We process a large (100k records) data set of arrest records, and train models predicting risk of two-year recidivism and two-year violent recidivism at time of arrest. We then evaluate our models, comparing their performance to that of a professional model, and assessing whether they perform differently among different demographic categories. 
+
 ## Using the project
 
 ### data_orocessing.sh
