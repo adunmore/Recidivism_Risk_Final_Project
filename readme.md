@@ -24,6 +24,8 @@ Before executing Notebooks/final_report.Rmd, simply run Data_Processing/data_pro
    - executes data_export.R, which generates several temporary .csv files in Data/modified, which are used by the modeling code.
 
 Note that final_report.Rmd and data_export.R each require several R packages as prerequisites. These must be installed manually.
+### final_report.Rmd
 
+This notebook is the main product of this project. It contains all of the code for our exploratory analysis, model training and selection, and model evaluation.This document renders to final_report.md.
 ### Cache/
 We cache models that are performance-intensive to train in Cache/. If you would like to train all models as new, be sure to delete the contents of Cache/.
