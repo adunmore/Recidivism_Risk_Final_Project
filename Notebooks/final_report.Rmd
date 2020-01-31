@@ -156,7 +156,7 @@ r3 <- df %>%
 
 r4 <- df %>% 
   ggplot(aes(x = prior_arrest_overall, fill = recidivated)) +
-  geom_bar(position = "fill") +
+  geom_bar(position = "fill", width = 1) +
   scale_fill_manual(values=c('lightgray', 'black')) +
   labs(title = "Recidivism across the number\nof prior arrests", x = "prior arrests") +
   theme(legend.position = "none")
@@ -190,7 +190,7 @@ vr3 <- df_violent %>%
 
 vr4 <- df_violent %>% 
   ggplot(aes(x = prior_arrest_overall, fill = recidivated_violent)) +
-  geom_bar(position = "fill") +
+  geom_bar(position = "fill", width = 1) +
   scale_fill_manual(values=c('lightgray', 'black')) +
   labs(title = "Violent recidivism across the number\nof prior arrests", x = "prior arrests") +
   theme(legend.position = "none")
