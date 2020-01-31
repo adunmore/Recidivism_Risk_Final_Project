@@ -11,6 +11,12 @@ This project was completed for [95791 Data Mining at CMU Heinz College, taught b
 
 ## Using the project
 
+### Prerequisites
+
+Requires sqlite3 command line tools, or some other way to execute Data_Processing/feature_engineering.sql against compas.db
+
+`final_report.Rmd` and `data_export.R` each require several R packages. These must be installed manually.
+
 ### data_orocessing.sh
 
 This repository contains the source code and data required to build the project from scratch.
@@ -18,10 +24,9 @@ This repository contains the source code and data required to build the project 
 Before executing `Notebooks/final_report.Rmd`, simply run `data_processing.sh`. This shell script:
    - creates temp folders `Data/modified/` and `Cache/`
    - creates a copy of the source data (`Data/compas.db`) in `Data/modified/compas.db`
-   - in the copy of the source data, executes `data_processing.sql`, which creates a number of additional variables, and makes several changes optimizing performance (adding indexes, denormalizing tables).
+   - in the copy of the source data, executes `feature_engineering.sql`, which creates a number of additional variables, and makes several changes optimizing performance (adding indexes, denormalizing tables).
    - executes `data_export.R`, generating several temporary .csv files in `Data/modified`, which are used by the modeling code.
 
-Note that `final_report.Rmd` and `data_export.R` each require several R packages as prerequisites. These must be installed manually.
 ### final_report.Rmd
 
 This notebook is the main product of this project. It contains all of the code for our exploratory analysis, model training and selection, and model evaluation.This document renders to `final_report.md`.
