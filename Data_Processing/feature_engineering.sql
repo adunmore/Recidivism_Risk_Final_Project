@@ -170,8 +170,10 @@ prior_arrest_5yr_violent =
 arrest_age = 
 	(select cast((julianday(arrest_date) - julianday(dob)) / 365.5 as int)
 	FROM people
-	WHERE casearrest.person_id = people.id),
-arrest_age_category = 
+	WHERE casearrest.person_id = people.id);
+
+UPDATE casearrest
+SET arrest_age_category = 
 	(select CASE WHEN casearrest.arrest_age < 25 THEN 'Less than 25'
 				 WHEN casearrest.arrest_age BETWEEN 25 AND 45 THEN '25 - 45'
 				 WHEN casearrest.arrest_age > 45 THEN 'Greater than 45' END);
