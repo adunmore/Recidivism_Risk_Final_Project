@@ -1,6 +1,6 @@
 Predicting Recidivism in Broward County
 ================
-[Aaron Dunmore](mailto:adunmore@andrew.cmu.edu) and \[Minseon Lee\] ([mailto:minseonl@andrew.cmu.edu](mailto:minseonl@andrew.cmu.edu))
+[Aaron Dunmore](mailto:adunmore@andrew.cmu.edu) and [Minseon Lee](mailto:minseonl@andrew.cmu.edu)
 
 Introduction
 ------------
