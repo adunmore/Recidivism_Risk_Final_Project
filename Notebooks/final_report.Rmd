@@ -2,9 +2,7 @@
 title: 'Predicting Recidivism in Broward County'
 author: '[Aaron Dunmore](mailto:adunmore@andrew.cmu.edu) and [Minseon Lee](mailto:minseonl@andrew.cmu.edu)'
 output:
-  github_document:
-  toc: TRUE
-  toc_float: TRUE
+  github_document
 ---
 
 
